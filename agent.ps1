@@ -21,6 +21,21 @@ function Say($m) {
   Add-Content -Path $Log -Value $line -Encoding UTF8
 }
 
+function Find-Proxy {
+  # Auto-detect a local HTTP proxy that can actually reach the exchange (Clash/v2rayN/etc.)
+  $cands = @(7890,7897,10809,10808,1080,8888,8889,8080,8118,20171,33210)
+  foreach ($p in $cands) {
+    $u = "http://127.0.0.1:$p"
+    try {
+      $t = Invoke-RestMethod -Proxy $u -TimeoutSec 6 -Uri ($Base + '/api/v2/peatio/public/markets/prlusdt/tickers')
+      if ($t.ticker.last) { Say ("Proxy FOUND: $u (PRL " + $t.ticker.last + ")"); return $u }
+    } catch { Say ("  port $p : " + $_.Exception.Message) }
+  }
+  Say 'No working local proxy found on common ports.'
+  return $null
+}
+
+
 if (-not (Test-Path $CfgF)) {
   Say 'First run: enter SafeTrade API info (stored locally only).'
   $key = (Read-Host 'API Key').Trim()
@@ -94,20 +109,6 @@ function Price {
   $h = @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36'; 'Referer' = 'https://safetrade.com/exchange/PRL-USDT' }
   $t = Invoke-RestMethod -Uri "$Base/api/v2/peatio/public/markets/prlusdt/tickers" -TimeoutSec 20 -Headers $h @SP
   return [double]$t.ticker.last
-}
-
-function Find-Proxy {
-  # Auto-detect a local HTTP proxy that can actually reach the exchange (Clash/v2rayN/etc.)
-  $cands = @(7890,7897,10809,10808,1080,8888,8889,8080,8118,20171,33210)
-  foreach ($p in $cands) {
-    $u = "http://127.0.0.1:$p"
-    try {
-      $t = Invoke-RestMethod -Proxy $u -TimeoutSec 6 -Uri ($Base + '/api/v2/peatio/public/markets/prlusdt/tickers')
-      if ($t.ticker.last) { Say ("Proxy FOUND: $u (PRL " + $t.ticker.last + ")"); return $u }
-    } catch { Say ("  port $p : " + $_.Exception.Message) }
-  }
-  Say 'No working local proxy found on common ports.'
-  return $null
 }
 
 function Fetch-Config {
