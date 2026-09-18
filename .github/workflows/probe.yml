@@ -1,0 +1,26 @@
+name: probe-safetrade
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 出口 IP 与位置
+        run: |
+          curl -sS -m 20 https://www.cloudflare.com/cdn-cgi/trace | grep -E '^(ip|loc|colo)=' || true
+
+      - name: 直连 SafeTrade ticker
+        run: |
+          echo "--- 无头 ---"
+          curl -sS -m 25 -w "\n[http=%{http_code}]\n" "https://safe.trade/api/v2/peatio/public/markets/prlusdt/tickers" | head -c 400
+          echo "--- 浏览器头 ---"
+          curl -sS -m 25 -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36" \
+            -H 'Accept: application/json' -H 'Referer: https://safetrade.com/exchange/PRL-USDT' -w "\n[http=%{http_code}]\n" \
+            "https://safe.trade/api/v2/peatio/public/markets/prlusdt/depth?limit=3" | head -c 500
+
+      - name: 结论
+        run: |
+          echo "如果上面返回 JSON = GitHub Actions 的出口能过 SafeTrade 的 WAF，可当执行主机；"
+          echo "如果返回 Attention Required = 同样被 WAF 拦，需要换别的出口。"
