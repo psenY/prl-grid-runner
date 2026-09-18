@@ -28,8 +28,17 @@ function Find-Proxy {
     $u = "http://127.0.0.1:$p"
     try {
       $t = Invoke-RestMethod -Proxy $u -TimeoutSec 6 -Uri ($Base + '/api/v2/peatio/public/markets/prlusdt/tickers')
-      if ($t.ticker.last) { Say ("Proxy FOUND: $u (PRL " + $t.ticker.last + ")"); return $u }
-    } catch { Say ("  port $p : " + $_.Exception.Message) }
+      if ($t.ticker.last) { Say ("Proxy WORKS: $u (PRL " + $t.ticker.last + ")"); return $u }
+    } catch {
+      $resp = $_.Exception.Response
+      $code = 0
+      if ($resp -and $resp.StatusCode) { $code = [int]$resp.StatusCode.value__ }
+      if ($code -gt 0) {
+        Say ("Proxy REACHABLE: $u (HTTP $code = WAF 403, switch node and rerun)")
+        return $u
+      }
+      Say ("  port $p : " + $_.Exception.Message)
+    }
   }
   Say 'No working local proxy found on common ports.'
   return $null
