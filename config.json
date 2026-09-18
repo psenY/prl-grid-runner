@@ -1,19 +1,43 @@
 {
-  "version": 1,
-  "updated": 1789755600,
+  "version": 2,
+  "updated": 1789755928,
   "market": "prlusdt",
   "kill": false,
-  "note": "AI 下发的网格配置：agent 每 20 秒拉一次，按 levels 补挂单；kill=true 则撤单退出。",
-  "stopPriceBelow": 0.91,
+  "note": "range moved up after the 0.99->1.06 spike: take profit on the way up, rebuy on pullback",
+  "stopPriceBelow": 0.99,
   "maxOpenOrders": 8,
   "maxOrderUsd": 45,
   "spreadGuardPct": 0.4,
   "levels": [
-    { "side": "sell", "price": 1.00, "amount": 20 },
-    { "side": "sell", "price": 1.02, "amount": 20 },
-    { "side": "sell", "price": 1.04, "amount": 20 },
-    { "side": "buy",  "price": 0.98, "amount": 20 },
-    { "side": "buy",  "price": 0.97, "amount": 20 },
-    { "side": "buy",  "price": 0.96, "amount": 20 }
+    {
+      "side": "sell",
+      "price": 1.06,
+      "amount": 20
+    },
+    {
+      "side": "sell",
+      "price": 1.09,
+      "amount": 20
+    },
+    {
+      "side": "sell",
+      "price": 1.12,
+      "amount": 20
+    },
+    {
+      "side": "buy",
+      "price": 1.02,
+      "amount": 20
+    },
+    {
+      "side": "buy",
+      "price": 1,
+      "amount": 20
+    },
+    {
+      "side": "buy",
+      "price": 0.98,
+      "amount": 20
+    }
   ]
 }
