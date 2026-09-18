@@ -25,7 +25,7 @@ if (-not (Test-Path $CfgF)) {
   Say 'First run: enter SafeTrade API info (stored locally only).'
   $key = (Read-Host 'API Key').Trim()
   $sec = (Read-Host 'API Secret').Trim()
-  $px  = (Read-Host 'Proxy (only if PowerShell cannot reach the exchange, e.g. http://127.0.0.1:7890; else press Enter)').Trim()
+  $px  = (Read-Host 'Proxy (press Enter = auto-detect local proxy, or e.g. http://127.0.0.1:7890)').Trim()
   $src = (Read-Host 'Config URL (press Enter for default)').Trim()
   if (-not $src) { $src = $DefaultSrc }
   @{ apikey = $key; secret = $sec; srcUrl = $src; proxy = $px } | ConvertTo-Json | Set-Content $CfgF -Encoding UTF8
@@ -37,7 +37,13 @@ $apikey = $conf.apikey
 $secret = $conf.secret
 $srcUrl = $conf.srcUrl
 $SP = @{}
-if ($conf.proxy -and $conf.proxy.Trim() -ne '') { $SP['Proxy'] = $conf.proxy.Trim(); Say ("Using proxy: " + $conf.proxy.Trim()) }
+if ($conf.proxy -and $conf.proxy.Trim() -ne '') {
+  $SP['Proxy'] = $conf.proxy.Trim(); Say ("Using proxy: " + $conf.proxy.Trim())
+} else {
+  Say 'No proxy in config -> auto-detecting local proxy...'
+  $found = Find-Proxy
+  if ($found) { $SP['Proxy'] = $found; $conf.proxy = $found; $conf | ConvertTo-Json | Set-Content $CfgF -Encoding UTF8 }
+}
 
 if (-not (Test-Path $StF)) { @{ authScheme = '' } | ConvertTo-Json | Set-Content $StF -Encoding UTF8 }
 $st = Get-Content $StF -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -88,6 +94,20 @@ function Price {
   $h = @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36'; 'Referer' = 'https://safetrade.com/exchange/PRL-USDT' }
   $t = Invoke-RestMethod -Uri "$Base/api/v2/peatio/public/markets/prlusdt/tickers" -TimeoutSec 20 -Headers $h @SP
   return [double]$t.ticker.last
+}
+
+function Find-Proxy {
+  # Auto-detect a local HTTP proxy that can actually reach the exchange (Clash/v2rayN/etc.)
+  $cands = @(7890,7897,10809,10808,1080,8888,8889,8080,8118,20171,33210)
+  foreach ($p in $cands) {
+    $u = "http://127.0.0.1:$p"
+    try {
+      $t = Invoke-RestMethod -Proxy $u -TimeoutSec 6 -Uri ($Base + '/api/v2/peatio/public/markets/prlusdt/tickers')
+      if ($t.ticker.last) { Say ("Proxy FOUND: $u (PRL " + $t.ticker.last + ")"); return $u }
+    } catch { Say ("  port $p : " + $_.Exception.Message) }
+  }
+  Say 'No working local proxy found on common ports.'
+  return $null
 }
 
 function Fetch-Config {
