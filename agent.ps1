@@ -24,6 +24,7 @@ if (-not (Test-Path $CfgF)) {
   Say '首次运行：请输入 SafeTrade API 信息（只存本机，不外传）'
   $key = (Read-Host 'API Key').Trim()
   $sec = (Read-Host 'API Secret').Trim()
+  $px  = (Read-Host '代理地址（如果浏览器走代理而 PowerShell 不走，就填 http://127.0.0.1:7890；否则直接回车）').Trim()
   $src = (Read-Host '配置地址（直接回车用默认）').Trim()
   if (-not $src) { $src = $DefaultSrc }
   @{ apikey = $key; secret = $sec; srcUrl = $src } | ConvertTo-Json | Set-Content $CfgF -Encoding UTF8
@@ -53,7 +54,7 @@ function Api($method, $path, $bodyObj) {
     'Referer' = 'https://safetrade.com/exchange/PRL-USDT'
   }
   try {
-    if ($method -eq 'GET') { return Invoke-RestMethod -Method Get -Uri ($Base + $path) -Headers $hdr -TimeoutSec 20 }
+    if ($method -eq 'GET') { return Invoke-RestMethod -Method Get -Uri ($Base + $path) -Headers $hdr -TimeoutSec 20 @SP }
     $json = if ($bodyObj) { $bodyObj | ConvertTo-Json -Compress } else { '{}' }
     return Invoke-RestMethod -Method Post -Uri ($Base + $path) -Headers $hdr -Body $json -TimeoutSec 20
   } catch {
@@ -75,7 +76,7 @@ function Balances {
   return $t
 }
 function Price {
-  $t = Invoke-RestMethod -Uri "$Base/api/v2/peatio/public/markets/prlusdt/tickers" -TimeoutSec 20 -Headers @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36'; 'Referer' = 'https://safetrade.com/exchange/PRL-USDT' }
+  $t = Invoke-RestMethod -Uri "$Base/api/v2/peatio/public/markets/prlusdt/tickers" -TimeoutSec 20 @SP -Headers @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36'; 'Referer' = 'https://safetrade.com/exchange/PRL-USDT' }
   return [double]$t.ticker.last
 }
 
@@ -83,7 +84,7 @@ function Fetch-Config {
   foreach ($u in @($srcUrl, 'https://raw.githubusercontent.com/psenY/prl-grid-runner/main/config.json', 'https://cdn.jsdelivr.net/gh/psenY/prl-grid-runner@main/config.json')) {
     try {
       $hdr = @{ 'Accept' = 'application/vnd.github.raw'; 'User-Agent' = 'prl-agent' }
-      $raw = (Invoke-WebRequest -Uri $u -Headers $hdr -TimeoutSec 25 -UseBasicParsing).Content
+      $raw = (Invoke-WebRequest -Uri $u -Headers $hdr -TimeoutSec 25 -UseBasicParsing @SP).Content
       $txt = $null
       if ($raw -match '^\s*\{' -and $raw -match '"content"\s*:') {
         $j = $raw | ConvertFrom-Json
