@@ -49,6 +49,8 @@ function Api($method, $path, $bodyObj) {
     'X-Auth-Apikey' = $apikey; 'X-Auth-Nonce' = $nonce
     'X-Auth-Signature' = (Sign $nonce $scheme)
     'Accept' = 'application/json'; 'Content-Type' = 'application/json'
+    'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36'
+    'Referer' = 'https://safetrade.com/exchange/PRL-USDT'
   }
   try {
     if ($method -eq 'GET') { return Invoke-RestMethod -Method Get -Uri ($Base + $path) -Headers $hdr -TimeoutSec 20 }
@@ -73,7 +75,7 @@ function Balances {
   return $t
 }
 function Price {
-  $t = Invoke-RestMethod -Uri "$Base/api/v2/peatio/public/markets/prlusdt/tickers" -TimeoutSec 20
+  $t = Invoke-RestMethod -Uri "$Base/api/v2/peatio/public/markets/prlusdt/tickers" -TimeoutSec 20 -Headers @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36'; 'Referer' = 'https://safetrade.com/exchange/PRL-USDT' }
   return [double]$t.ticker.last
 }
 
