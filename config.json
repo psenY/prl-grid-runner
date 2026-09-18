@@ -1,19 +1,14 @@
 {
-  "version": 3,
-  "updated": 1789755976,
+  "version": 4,
+  "updated": 1789756182,
   "market": "prlusdt",
   "kill": false,
-  "note": "spike to 1.06 got rejected; range now 0.97-1.10 with a 60k ask wall at 1.10",
-  "stopPriceBelow": 0.96,
+  "note": "range 1.02-1.10; asks thin above except 1.09/1.10 walls; bids thin below 1.05",
+  "stopPriceBelow": 0.98,
   "maxOpenOrders": 8,
   "maxOrderUsd": 45,
   "spreadGuardPct": 0.4,
   "levels": [
-    {
-      "side": "sell",
-      "price": 1.05,
-      "amount": 20
-    },
     {
       "side": "sell",
       "price": 1.07,
@@ -21,7 +16,17 @@
     },
     {
       "side": "sell",
-      "price": 1.1,
+      "price": 1.09,
+      "amount": 20
+    },
+    {
+      "side": "sell",
+      "price": 1.11,
+      "amount": 20
+    },
+    {
+      "side": "buy",
+      "price": 1.03,
       "amount": 20
     },
     {
@@ -32,11 +37,6 @@
     {
       "side": "buy",
       "price": 0.99,
-      "amount": 20
-    },
-    {
-      "side": "buy",
-      "price": 0.97,
       "amount": 20
     }
   ]
