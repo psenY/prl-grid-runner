@@ -1,7 +1,7 @@
-# prl-agent.ps1 —— 放在你 Windows 电脑上的"手"（v3）
+# prl-agent.ps1 —— 放在你 Windows 电脑上的"手"（v4：支持可选代理）
 # 作用：每 20 秒按我下发的配置补挂网格单；触发停机线就撤单清仓；kill=true 就撤单退出。
-# 你只需要做一次：在 PowerShell 里跑一行命令（我把那行给你），首次会让你填 SafeTrade 的
-# API Key/Secret —— 只存在本机 %USERPROFILE%\.prl-agent\config.json，不会外传。
+# 你只需要做一次：在 PowerShell 跑一行命令（我给你的那行），首次会让你填 SafeTrade 的
+# API Key/Secret/（可选）代理 —— 只存在本机 %USERPROFILE%\.prl-agent\config.json，不会外传。
 # 停止：Ctrl+C，或让我把配置里的 kill 设为 true。
 
 $ErrorActionPreference = 'Stop'
@@ -24,14 +24,20 @@ if (-not (Test-Path $CfgF)) {
   Say '首次运行：请输入 SafeTrade API 信息（只存本机，不外传）'
   $key = (Read-Host 'API Key').Trim()
   $sec = (Read-Host 'API Secret').Trim()
-  $px  = (Read-Host '代理地址（如果浏览器走代理而 PowerShell 不走，就填 http://127.0.0.1:7890；否则直接回车）').Trim()
+  $px  = (Read-Host '代理地址（浏览器走代理而这里连不上时才填，如 http://127.0.0.1:7890；否则直接回车）').Trim()
   $src = (Read-Host '配置地址（直接回车用默认）').Trim()
   if (-not $src) { $src = $DefaultSrc }
-  @{ apikey = $key; secret = $sec; srcUrl = $src } | ConvertTo-Json | Set-Content $CfgF -Encoding UTF8
+  @{ apikey = $key; secret = $sec; srcUrl = $src; proxy = $px } | ConvertTo-Json | Set-Content $CfgF -Encoding UTF8
   Say "已保存：$CfgF"
 }
+
 $conf = Get-Content $CfgF -Raw -Encoding UTF8 | ConvertFrom-Json
-$apikey = $conf.apikey; $secret = $conf.secret; $srcUrl = $conf.srcUrl
+$apikey = $conf.apikey
+$secret = $conf.secret
+$srcUrl = $conf.srcUrl
+$SP = @{}
+if ($conf.proxy -and $conf.proxy.Trim() -ne '') { $SP['Proxy'] = $conf.proxy.Trim(); Say ('使用代理：' + $conf.proxy.Trim()) }
+
 if (-not (Test-Path $StF)) { @{ authScheme = '' } | ConvertTo-Json | Set-Content $StF -Encoding UTF8 }
 $st = Get-Content $StF -Raw -Encoding UTF8 | ConvertFrom-Json
 function Save-St { $st | ConvertTo-Json -Depth 6 | Set-Content $StF -Encoding UTF8 }
@@ -47,16 +53,18 @@ function Api($method, $path, $bodyObj) {
   $nonce = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds().ToString()
   $scheme = if ($st.authScheme) { $st.authScheme } else { 'A' }
   $hdr = @{
-    'X-Auth-Apikey' = $apikey; 'X-Auth-Nonce' = $nonce
+    'X-Auth-Apikey'    = $apikey
+    'X-Auth-Nonce'     = $nonce
     'X-Auth-Signature' = (Sign $nonce $scheme)
-    'Accept' = 'application/json'; 'Content-Type' = 'application/json'
-    'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36'
-    'Referer' = 'https://safetrade.com/exchange/PRL-USDT'
+    'Accept'           = 'application/json'
+    'Content-Type'     = 'application/json'
+    'User-Agent'       = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36'
+    'Referer'          = 'https://safetrade.com/exchange/PRL-USDT'
   }
   try {
     if ($method -eq 'GET') { return Invoke-RestMethod -Method Get -Uri ($Base + $path) -Headers $hdr -TimeoutSec 20 @SP }
     $json = if ($bodyObj) { $bodyObj | ConvertTo-Json -Compress } else { '{}' }
-    return Invoke-RestMethod -Method Post -Uri ($Base + $path) -Headers $hdr -Body $json -TimeoutSec 20
+    return Invoke-RestMethod -Method Post -Uri ($Base + $path) -Headers $hdr -Body $json -TimeoutSec 20 @SP
   } catch {
     $code = $_.Exception.Response.StatusCode.value__
     if ($code -eq 401 -and -not $st.authScheme) { $st.authScheme = 'B'; Save-St; Say '签名方案 A 被拒 → 切 B 重试'; return Api $method $path $bodyObj }
@@ -110,7 +118,10 @@ $cyc = 0; $cfg = $null; $lastLog = ''
 while ($true) {
   $cyc++
   if (-not $cfg -or ($cyc % 3 -eq 1)) {
-    try { $cfg = Fetch-Config; if ($cyc -le 1) { Say ("配置已加载：{0} 档 / 停机线 {1}" -f $cfg.levels.Count, $cfg.stopPriceBelow) } } catch { Say ("配置获取失败：{0}" -f $_.Exception.Message) }
+    try {
+      $cfg = Fetch-Config
+      if ($cyc -le 1 -and $cfg) { Say ("配置已加载：{0} 档 / 停机线 {1}" -f $cfg.levels.Count, $cfg.stopPriceBelow) }
+    } catch { Say ("配置获取失败：{0}" -f $_.Exception.Message) }
   }
   try {
     if ($cfg -and $cfg.kill) {
